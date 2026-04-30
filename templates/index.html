@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FooterForge — Add Footers to PDF & DOCX</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Root ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0f14;
+      --surface:   #13161d;
+      --border:    #232733;
+      --accent:    #e8ff5a;
+      --accent2:   #5affe8;
+      --text:      #e8eaf0;
+      --muted:     #6b7280;
+      --error:     #ff5a5a;
+      --success:   #5affe8;
+      --radius:    14px;
+      --font-head: 'Syne', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      overflow-x: hidden;
+    }
+
+    /* ── Background grid ──────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(232,255,90,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(232,255,90,.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Layout ───────────────────────────────────────── */
+    .page {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 20px;
+      gap: 0;
+    }
+
+    /* ── Header ───────────────────────────────────────── */
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+      animation: fadeUp .6s ease both;
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(232,255,90,.08);
+      border: 1px solid rgba(232,255,90,.25);
+      border-radius: 100px;
+      padding: 6px 16px;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: .08em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .logo-badge span { font-size: 14px; }
+
+    h1 {
+      font-family: var(--font-head);
+      font-size: clamp(2.4rem, 5vw, 3.8rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -.02em;
+      color: var(--text);
+    }
+
+    h1 em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .subtitle {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: .875rem;
+      letter-spacing: .03em;
+    }
+
+    /* ── Card ─────────────────────────────────────────── */
+    .card {
+      width: 100%;
+      max-width: 580px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px;
+      animation: fadeUp .6s .1s ease both;
+      box-shadow: 0 0 80px rgba(232,255,90,.04), 0 24px 60px rgba(0,0,0,.4);
+    }
+
+    /* ── Drop zone ────────────────────────────────────── */
+    .drop-zone {
+      border: 1.5px dashed var(--border);
+      border-radius: 10px;
+      padding: 40px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .25s ease;
+      position: relative;
+      background: rgba(255,255,255,.01);
+    }
+
+    .drop-zone:hover,
+    .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(232,255,90,.04);
+    }
+
+    .drop-zone.has-file {
+      border-color: var(--accent2);
+      background: rgba(90,255,232,.04);
+    }
+
+    .drop-icon {
+      width: 52px;
+      height: 52px;
+      margin: 0 auto 16px;
+      background: rgba(232,255,90,.08);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      transition: transform .2s ease;
+    }
+
+    .drop-zone:hover .drop-icon,
+    .drop-zone.drag-over .drop-icon { transform: scale(1.1) rotate(-3deg); }
+
+    .drop-title {
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .drop-sub {
+      font-size: .78rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .drop-sub strong { color: var(--accent); font-weight: 500; }
+
+    #file-input { display: none; }
+
+    .file-info {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      margin-top: 10px;
+      padding: 12px 16px;
+      background: rgba(90,255,232,.06);
+      border: 1px solid rgba(90,255,232,.2);
+      border-radius: 8px;
+      font-size: .8rem;
+    }
+
+    .file-info.visible { display: flex; }
+
+    .file-info .file-icon { font-size: 20px; }
+    .file-name { flex: 1; color: var(--accent2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-size { color: var(--muted); flex-shrink: 0; }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: color .15s;
+      flex-shrink: 0;
+    }
+    .remove-btn:hover { color: var(--error); }
+
+    /* ── Form ─────────────────────────────────────────── */
+    .form-group {
+      margin-top: 24px;
+    }
+
+    label {
+      display: block;
+      font-size: .75rem;
+      font-weight: 500;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-prefix {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      pointer-events: none;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 13px 14px 13px 38px;
+      font-family: var(--font-mono);
+      font-size: .9rem;
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+
+    input[type="text"]::placeholder { color: var(--muted); }
+
+    /* ── Submit button ────────────────────────────────── */
+    .btn {
+      width: 100%;
+      margin-top: 28px;
+      padding: 15px 24px;
+      background: var(--accent);
+      color: #0d0f14;
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all .2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      letter-spacing: .01em;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: #f5ff80;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(232,255,90,.25);
+    }
+
+    .btn:active:not(:disabled) { transform: translateY(0); }
+
+    .btn:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    /* ── Loader ───────────────────────────────────────── */
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(13,15,20,.3);
+      border-top-color: #0d0f14;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    /* ── Toast messages ───────────────────────────────── */
+    .toast {
+      display: none;
+      align-items: flex-start;
+      gap: 12px;
+      margin-top: 20px;
+      padding: 14px 18px;
+      border-radius: 8px;
+      font-size: .82rem;
+      line-height: 1.5;
+      animation: fadeUp .3s ease both;
+    }
+
+    .toast.visible { display: flex; }
+
+    .toast.success {
+      background: rgba(90,255,232,.07);
+      border: 1px solid rgba(90,255,232,.25);
+      color: var(--accent2);
+    }
+
+    .toast.error {
+      background: rgba(255,90,90,.07);
+      border: 1px solid rgba(255,90,90,.25);
+      color: var(--error);
+    }
+
+    .toast-icon { font-size: 18px; flex-shrink: 0; }
+
+    /* ── Divider ──────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 28px 0;
+    }
+
+    /* ── Supported formats ────────────────────────────── */
+    .format-chips {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      background: rgba(255,255,255,.03);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      font-size: .72rem;
+      color: var(--muted);
+      letter-spacing: .05em;
+    }
+
+    .chip .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+    }
+
+    .chip.pdf .dot { background: #ff6b6b; }
+    .chip.docx .dot { background: #5a9fff; }
+
+    /* ── Footer ───────────────────────────────────────── */
+    footer {
+      margin-top: 40px;
+      font-size: .72rem;
+      color: var(--muted);
+      letter-spacing: .04em;
+      text-align: center;
+      animation: fadeUp .6s .2s ease both;
+    }
+
+    /* ── Animations ───────────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="logo-badge"><span>📄</span> FooterForge</div>
+    <h1>Add <em>footers</em><br>to every page</h1>
+    <p class="subtitle">PDF &amp; DOCX — no fuss, instant download</p>
+  </header>
+
+  <div class="card">
+
+    <!-- Drop zone -->
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" accept=".pdf,.docx" />
+      <div class="drop-icon">📂</div>
+      <div class="drop-title">Drop your file here</div>
+      <p class="drop-sub">
+        or <strong>click to browse</strong><br>
+        Supports PDF and DOCX files
+      </p>
+    </div>
+
+    <!-- File selected indicator -->
+    <div class="file-info" id="file-info">
+      <span class="file-icon" id="file-type-icon">📄</span>
+      <span class="file-name" id="file-name-display">—</span>
+      <span class="file-size" id="file-size-display">—</span>
+      <button class="remove-btn" id="remove-btn" title="Remove file">✕</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Footer text input -->
+    <div class="form-group">
+      <label for="footer-text">Footer Text</label>
+      <div class="input-wrap">
+        <span class="input-prefix">✏️</span>
+        <input
+          type="text"
+          id="footer-text"
+          placeholder="e.g. Confidential — Acme Corp © 2025"
+          maxlength="150"
+        />
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <button class="btn" id="submit-btn" disabled>
+      <span id="btn-text">Add Footer</span>
+    </button>
+
+    <!-- Toast messages -->
+    <div class="toast success" id="toast-success">
+      <span class="toast-icon">✅</span>
+      <span id="success-msg">Your file is ready! Download should begin automatically.</span>
+    </div>
+    <div class="toast error" id="toast-error">
+      <span class="toast-icon">⚠️</span>
+      <span id="error-msg">Something went wrong.</span>
+    </div>
+
+  </div>
+
+  <div class="format-chips" style="margin-top:20px; animation: fadeUp .6s .15s ease both;">
+    <div class="chip pdf"><span class="dot"></span>PDF — all pages stamped</div>
+    <div class="chip docx"><span class="dot"></span>DOCX — all sections covered</div>
+  </div>
+
+  <footer>Built with Flask + PyPDF2 + python-docx &nbsp;·&nbsp; FooterForge</footer>
+
+</div>
+
+<script>
+  // ── State ────────────────────────────────────────────
+  let selectedFile = null;
+
+  // ── Elements ─────────────────────────────────────────
+  const dropZone     = document.getElementById('drop-zone');
+  const fileInput    = document.getElementById('file-input');
+  const fileInfo     = document.getElementById('file-info');
+  const fileNameDisp = document.getElementById('file-name-display');
+  const fileSizeDisp = document.getElementById('file-size-display');
+  const fileTypeIcon = document.getElementById('file-type-icon');
+  const removeBtn    = document.getElementById('remove-btn');
+  const footerText   = document.getElementById('footer-text');
+  const submitBtn    = document.getElementById('submit-btn');
+  const btnText      = document.getElementById('btn-text');
+  const toastSuccess = document.getElementById('toast-success');
+  const toastError   = document.getElementById('toast-error');
+  const successMsg   = document.getElementById('success-msg');
+  const errorMsg     = document.getElementById('error-msg');
+
+  // ── Helpers ───────────────────────────────────────────
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(2) + ' MB';
+  }
+
+  function setFile(file) {
+    selectedFile = file;
+    const ext = file.name.split('.').pop().toLowerCase();
+    fileTypeIcon.textContent = ext === 'pdf' ? '📕' : '📘';
+    fileNameDisp.textContent = file.name;
+    fileSizeDisp.textContent = formatBytes(file.size);
+    fileInfo.classList.add('visible');
+    dropZone.classList.add('has-file');
+    updateSubmit();
+  }
+
+  function clearFile() {
+    selectedFile = null;
+    fileInput.value = '';
+    fileInfo.classList.remove('visible');
+    dropZone.classList.remove('has-file');
+    updateSubmit();
+  }
+
+  function updateSubmit() {
+    submitBtn.disabled = !(selectedFile && footerText.value.trim());
+  }
+
+  function hideToasts() {
+    toastSuccess.classList.remove('visible');
+    toastError.classList.remove('visible');
+  }
+
+  function showError(msg) {
+    hideToasts();
+    errorMsg.textContent = msg;
+    toastError.classList.add('visible');
+  }
+
+  function showSuccess(msg) {
+    hideToasts();
+    successMsg.textContent = msg;
+    toastSuccess.classList.add('visible');
+  }
+
+  function setLoading(loading) {
+    submitBtn.disabled = loading;
+    if (loading) {
+      btnText.innerHTML = '';
+      const spinner = document.createElement('div');
+      spinner.className = 'spinner';
+      const label = document.createElement('span');
+      label.textContent = 'Processing…';
+      btnText.appendChild(spinner);
+      btnText.appendChild(label);
+    } else {
+      btnText.innerHTML = 'Add Footer';
+      updateSubmit();
+    }
+  }
+
+  // ── Drop zone events ──────────────────────────────────
+  dropZone.addEventListener('click', () => fileInput.click());
+
+  dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+  });
+
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('drag-over');
+  });
+
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileSelect(file);
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) handleFileSelect(fileInput.files[0]);
+  });
+
+  removeBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    clearFile();
+    hideToasts();
+  });
+
+  function handleFileSelect(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['pdf', 'docx'].includes(ext)) {
+      showError('Only PDF and DOCX files are supported.');
+      return;
+    }
+    setFile(file);
+    hideToasts();
+  }
+
+  footerText.addEventListener('input', updateSubmit);
+
+  // ── Submit ────────────────────────────────────────────
+  submitBtn.addEventListener('click', async () => {
+    if (!selectedFile || !footerText.value.trim()) return;
+
+    hideToasts();
+    setLoading(true);
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('footer_text', footerText.value.trim());
+
+    try {
+      const response = await fetch('/process', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Server error.');
+      }
+
+      // Trigger download
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = 'processed_file';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (match) filename = match[1];
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      showSuccess(`✔ Footer added! "${filename}" downloaded successfully.`);
+
+    } catch (err) {
+      showError(err.message || 'Unexpected error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  });
+</script>
+</body>
+  </html>
