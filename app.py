@@ -9,6 +9,7 @@ from docx.shared import Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
+from docx.oxml.ns import qr
 
 app = Flask(__name__)
 UPLOAD, OUTPUT = "uploads", "outputs"
